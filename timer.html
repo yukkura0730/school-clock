@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Clock V4</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕒</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #ffffff; --text-color: #333333; --accent-color: #00479d;
+            --sub-color: #666666; --countdown-color: #d32f2f; --ui-bg: rgba(128, 128, 128, 0.15);
+            --modal-content-bg: #ffffff;
+        }
+        .dark-mode {
+            --bg-color: #121212; --text-color: #e0e0e0; --accent-color: #4da3ff;
+            --sub-color: #aaaaaa; --countdown-color: #ff5252; --ui-bg: rgba(255, 255, 255, 0.1);
+            --modal-content-bg: #1e1e1e;
+        }
+        body {
+            background-color: var(--bg-color); color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s; font-family: 'BIZ UDPGothic', sans-serif;
+            margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden;
+        }
+        @keyframes shake {
+            0% { transform: translate(0,0); }
+            10% { transform: translate(-10px, -10px); }
+            20% { transform: translate(10px, 10px); }
+            100% { transform: translate(0,0); }
+        }
+        .is-exploding #main-display { animation: shake 0.1s infinite; }
+        
+        #explosion-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 99999; display: none; background: #000; align-items: center; justify-content: center;
+            cursor: pointer;
+        }
+        #explosion-video { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+        
+        #main-display { 
+            display: flex; flex-direction: column; align-items: center; text-align: center; width: 100%; 
+            transition: transform 0.2s ease-out; transform-origin: center;
+        }
+        
+        .large-text { font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+        .small-text { font-weight: 700; color: var(--sub-color); margin: 10px 0; }
+        #clock-view, #countdown-view, #pomodoro-view { display: none; flex-direction: column; align-items: center; }
+        
+        .show-clock #clock-view { display: flex; }
+        .show-countdown #countdown-view { display: flex; }
+        .show-pomodoro #pomodoro-view { display: flex; }
+
+        #clock-display, #timer-display, #pomo-display { font-size: 15rem; border-bottom: 0.05em solid var(--accent-color); }
+        #timer-display, #pomo-display { border-bottom: none; color: var(--countdown-color); }
+        #timer-sub, #pomo-sub { font-size: 3rem; color: var(--countdown-color); }
+        #clock-sub { font-size: 4rem; color: var(--sub-color); }
+        #date-area { font-size: 2rem; margin-top: 10px; color: var(--sub-color); }
+        #schedule-label { font-size: 1.2rem; color: var(--accent-color); font-weight: bold; margin-bottom: 5px; }
+        
+        .ui-container { position: fixed; z-index: 100; display: flex; gap: 10px; }
+        #controls-bottom-right { bottom: 20px; right: 20px; flex-direction: column; }
+        #settings-trigger-top { top: 20px; right: 20px; }
+        
+        button {
+            cursor: pointer; padding: 12px 18px; border-radius: 10px; border: none;
+            background: var(--ui-bg); color: var(--text-color); font-weight: bold; font-family: inherit;
+        }
+        .btn-accent { background: var(--accent-color); color: white; margin-top: 15px; width: 100%; padding: 15px; border-radius: 10px; }
+        
+        #settings-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px);
+        }
+        .modal-content {
+            background: var(--modal-content-bg); color: var(--text-color); padding: 25px; border-radius: 20px;
+            width: 440px; max-height: 90vh; overflow-y: auto; position: relative;
+        }
+        .setting-item { margin-bottom: 18px; border-bottom: 1px solid rgba(128,128,128,0.1); padding-bottom: 12px; }
+        .setting-item label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 14px; }
+        
+        input[type="number"], select, textarea, input[type="file"], input[type="range"] { 
+            width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--sub-color); 
+            background: var(--bg-color); color: inherit; box-sizing: border-box; font-family: inherit;
+        }
+        textarea { height: 55px; font-size: 12px; }
+        .flex-row { display: flex; align-items: center; justify-content: space-between; }
+        .highlight-box { background: var(--ui-bg); padding: 12px; border-radius: 12px; }
+        .bomb-box { border: 2px dashed var(--countdown-color); background: rgba(211, 47, 47, 0.1); }
+        .pomo-box { border: 2px solid #2e7d32; background: rgba(46, 125, 50, 0.1); }
+
+        .btn-test { margin-top: 10px; width: 100%; padding: 12px; background: #444; color: #fff; border-radius: 8px; border: 2px solid #666; }
+        .pomo-controls { display: flex; gap: 10px; margin-top: 10px; }
+        .pomo-controls button { flex: 1; font-size: 0.8rem; padding: 8px; }
+    </style>
+</head>
+<body id="body-tag" class="show-clock" onclick="handleBodyClick()">
+
+    <div id="explosion-overlay" onclick="stopExplosion(event)">
+        <video id="explosion-video" playsinline></video>
+    </div>
+
+    <div id="main-display">
+        <div id="schedule-label">--</div>
+        <div id="clock-view">
+            <div id="clock-display" class="large-text">--:--:--</div>
+            <div id="timer-sub" class="small-text">次：--:--</div>
+        </div>
+        <div id="countdown-view">
+            <div id="next-label" class="small-text">次のチャイム --:--</div>
+            <div id="timer-display" class="large-text">--:--</div>
+            <div id="clock-sub" class="small-text">現在時刻 --:--:--</div>
+        </div>
+        <div id="pomodoro-view">
+            <div id="pomo-status" class="small-text">集中タイム</div>
+            <div id="pomo-display" class="large-text">25:00</div>
+            <div class="pomo-controls">
+                <button onclick="startPomodoro()">開始</button>
+                <button onclick="pausePomodoro()">一時停止</button>
+                <button onclick="resetPomodoro()">リセット</button>
+            </div>
+        </div>
+        <div id="date-area">----/--/-- (---)</div>
+    </div>
+
+    <div id="settings-trigger-top" class="ui-container">
+        <button onclick="openSettings()">⚙️ 設定</button>
+    </div>
+
+    <div id="controls-bottom-right" class="ui-container">
+        <button onclick="toggleViewMode()">🔄 表示切替</button>
+        <button onclick="toggleFullScreen()">🖥️ 全画面</button>
+    </div>
+
+    <div id="settings-modal" onclick="closeModalOutside(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3 style="margin-top:0; color: var(--accent-color);">⚙️ 環境設定</h3>
+            
+            <div class="setting-item flex-row highlight-box">
+                <label>時間割機能を有効にする</label>
+                <input type="checkbox" id="schedule-enable-check">
+            </div>
+
+            <div class="setting-item highlight-box">
+                <label>現在の授業モード</label>
+                <select id="current-mode-select">
+                    <option value="5">5時間授業</option>
+                    <option value="6">6時間授業</option>
+                </select>
+              <small style="font-size: 10px; color: var(--sub-color); display:block; mt-5px">※保存すると即座に反映されます。</small>
+            </div>
+
+            <div class="setting-item">
+                <label>曜日ごとのデフォルトモード</label>
+                <div id="day-mapping-inputs" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px;"></div>
+              <small style="font-size: 10px; color: var(--sub-color); margin-top:5px; display:block;">※再読み込み時にこの曜日設定が自動適用されます。</small>
+            </div>
+
+            <div class="setting-item">
+                <label>5時間授業の時間設定 (カンマ区切り)</label>
+                <textarea id="schedule-edit-5"></textarea>
+            </div>
+
+            <div class="setting-item">
+                <label>6時間授業の時間設定 (カンマ区切り)</label>
+                <textarea id="schedule-edit-6"></textarea>
+            </div>
+
+            <div class="setting-item">
+                <label>時間調整（秒）</label>
+                <input type="number" id="offset-input" step="0.1">
+            </div>
+
+            <div class="setting-item flex-row">
+                <label>ダークモード</label>
+                <input type="checkbox" id="darkmode-check">
+            </div>
+
+            <div class="setting-item pomo-box highlight-box">
+                <label style="color: #2e7d32;">🍅 ポモドーロ設定</label>
+                <div class="flex-row">
+                    <span>集中(分):</span><input type="number" id="pomo-work-input" style="width:60px" value="25">
+                    <span>休憩(分):</span><input type="number" id="pomo-break-input" style="width:60px" value="5">
+                </div>
+            </div>
+
+            <div class="setting-item bomb-box highlight-box">
+                <label style="color: var(--countdown-color);">💣 爆発機能</label>
+                <div class="flex-row">
+                    <span>自動爆発（動画または音）</span>
+                    <input type="checkbox" id="bomb-enable-check">
+                </div>
+                <div style="margin-top: 10px;">
+                    <label style="font-size: 12px;">音量</label>
+                    <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="1" oninput="applyVolume(this.value)">
+                </div>
+                <div style="margin-top: 10px;">
+                    <label style="font-size: 12px;">動画ファイル（ポモドーロ終了時は音も鳴ります）</label>
+                    <input type="file" id="video-file-input" accept="video/*">
+                </div>
+                <button type="button" class="btn-test" onclick="triggerExplosion(false)">[ 💥 今すぐテスト爆発 ]</button>
+            </div>
+
+            <div class="setting-item">
+                <label>文字サイズ (30% - 150%)</label>
+                <input type="range" id="size-slider" min="30" max="150" value="100" oninput="applyZoom(this.value)">
+            </div>
+
+            <button class="btn-accent" onclick="saveSettings()">設定を保存して閉じる</button>
+        </div>
+    </div>
+
+    <script>
+        const defaultSchedules = {
+            "5": ["08:25", "08:35", "08:40", "09:30", "09:40", "10:30", "10:40", "11:30", "11:40", "12:30", "13:00", "13:15", "13:20", "14:10"],
+            "6": ["08:25", "08:35", "08:40", "09:30", "09:40", "10:30", "10:40", "11:30", "11:40", "12:30", "13:00", "13:15", "13:20", "14:10", "14:20", "15:10"]
+        };
+        let schedules = JSON.parse(localStorage.getItem('customSchedules')) || defaultSchedules;
+        let dayMapping = JSON.parse(localStorage.getItem('dayMapping')) || ["6", "6", "6", "5", "6", "6", "6"];
+        let currentScheduleMode = localStorage.getItem('lastManualMode') || dayMapping[new Date().getDay()];
+        let timeOffset = parseFloat(localStorage.getItem('timeOffset')) || 0;
+        let isDarkMode = localStorage.getItem('darkMode') === 'true';
+        let isBombEnabled = localStorage.getItem('isBombEnabled') === 'true';
+        let isScheduleEnabled = localStorage.getItem('isScheduleEnabled') !== 'false';
+        let zoomLevel = localStorage.getItem('zoomLevel') || 100;
+        let bombVolume = localStorage.getItem('bombVolume') || 1;
+        
+        let videoObjectURL = null;
+        let lastExplodeTime = "";
+        let isExplodingNow = false;
+
+        let pomoTime = 25 * 60;
+        let pomoIsRunning = false;
+        let pomoIsWork = true;
+        let pomoTimerId = null;
+
+        let audioCtx = null;
+
+        const body = document.getElementById('body-tag');
+        const videoInput = document.getElementById('video-file-input');
+        const videoPlayer = document.getElementById('explosion-video');
+        const explosionOverlay = document.getElementById('explosion-overlay');
+
+        function initApp() {
+            applyZoom(zoomLevel);
+            applyVolume(bombVolume);
+            body.classList.toggle('dark-mode', isDarkMode);
+            resetPomodoro();
+        }
+
+        function playBeep() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = "sine";
+            osc.frequency.value = 880; 
+            gain.gain.setValueAtTime(bombVolume, audioCtx.currentTime);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 1.0);
+        }
+
+        function applyZoom(val) { zoomLevel = val; document.getElementById('main-display').style.transform = `scale(${val / 100})`; }
+        function applyVolume(val) { bombVolume = val; videoPlayer.volume = val; }
+
+        // 引数 withSound が true の時だけ音が鳴る
+        function triggerExplosion(withSound = false) {
+            if (!isBombEnabled) return;
+
+            // 動画がある場合は動画を再生
+            if (videoPlayer.src && videoPlayer.src.startsWith('blob:')) {
+                isExplodingNow = true;
+                explosionOverlay.style.display = 'flex';
+                body.classList.add('is-exploding');
+                videoPlayer.currentTime = 0;
+                videoPlayer.play().catch(e => stopExplosion());
+                videoPlayer.onended = () => stopExplosion();
+                // 動画あり＋ポモドーロ終了(withSound=true)なら音も重ねる
+                if (withSound) playBeep();
+            } else {
+                // 動画がない場合はポモドーロ終了時のみ音を鳴らす
+                if (withSound) {
+                    playBeep();
+                    body.style.backgroundColor = "red";
+                    setTimeout(() => { body.style.backgroundColor = ""; }, 500);
+                }
+            }
+        }
+
+        function stopExplosion(event) {
+            if (event) event.stopPropagation();
+            explosionOverlay.style.display = 'none';
+            body.classList.remove('is-exploding');
+            videoPlayer.pause();
+            isExplodingNow = false;
+        }
+
+        function handleBodyClick() {
+            if (isExplodingNow) stopExplosion();
+            else {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (videoPlayer.src) { videoPlayer.play().then(() => { videoPlayer.pause(); videoPlayer.currentTime = 0; }).catch(e=>{}); }
+            }
+        }
+
+        function startPomodoro() {
+            if (pomoIsRunning) return;
+            pomoIsRunning = true;
+            pomoTimerId = setInterval(() => {
+                pomoTime--;
+                if (pomoTime <= 0) {
+                    // ポモドーロ終了時は音付きでトリガー
+                    triggerExplosion(true);
+                    pomoIsWork = !pomoIsWork;
+                    pomoTime = (pomoIsWork ? document.getElementById('pomo-work-input').value : document.getElementById('pomo-break-input').value) * 60;
+                }
+                updatePomoUI();
+            }, 1000);
+        }
+        function pausePomodoro() { pomoIsRunning = false; clearInterval(pomoTimerId); }
+        function resetPomodoro() { pausePomodoro(); pomoIsWork = true; pomoTime = document.getElementById('pomo-work-input').value * 60; updatePomoUI(); }
+        function updatePomoUI() {
+            const m = Math.floor(pomoTime / 60); const s = pomoTime % 60;
+            document.getElementById('pomo-display').innerText = `${m}:${String(s).padStart(2, '0')}`;
+            document.getElementById('pomo-status').innerText = pomoIsWork ? "集中タイム" : "休憩タイム";
+        }
+
+        function openSettings() {
+            document.getElementById('schedule-enable-check').checked = isScheduleEnabled;
+            document.getElementById('current-mode-select').value = currentScheduleMode;
+            document.getElementById('schedule-edit-5').value = schedules["5"].join(", ");
+            document.getElementById('schedule-edit-6').value = schedules["6"].join(", ");
+            document.getElementById('offset-input').value = timeOffset;
+            document.getElementById('darkmode-check').checked = isDarkMode;
+            document.getElementById('bomb-enable-check').checked = isBombEnabled;
+            document.getElementById('size-slider').value = zoomLevel;
+            
+            const dayContainer = document.getElementById('day-mapping-inputs');
+            dayContainer.innerHTML = '';
+            ['日','月','火','水','木','金','土'].forEach((d, i) => {
+                dayContainer.innerHTML += `<div style="text-align:center"><span style="font-size:10px">${d}</span><select id="day-${i}" style="font-size:10px; padding:2px;"><option value="5">5</option><option value="6">6</option></select></div>`;
+                setTimeout(() => { if(document.getElementById(`day-${i}`)) document.getElementById(`day-${i}`).value = dayMapping[i]; }, 0);
+            });
+            document.getElementById('settings-modal').style.display = 'flex';
+        }
+
+        function saveSettings() {
+            isScheduleEnabled = document.getElementById('schedule-enable-check').checked;
+            currentScheduleMode = document.getElementById('current-mode-select').value;
+            schedules["5"] = document.getElementById('schedule-edit-5').value.split(',').map(s => s.trim()).filter(s => s);
+            schedules["6"] = document.getElementById('schedule-edit-6').value.split(',').map(s => s.trim()).filter(s => s);
+            for(let i=0; i<7; i++) dayMapping[i] = document.getElementById(`day-${i}`).value;
+            timeOffset = parseFloat(document.getElementById('offset-input').value) || 0;
+            isDarkMode = document.getElementById('darkmode-check').checked;
+            isBombEnabled = document.getElementById('bomb-enable-check').checked;
+
+            localStorage.setItem('isScheduleEnabled', isScheduleEnabled);
+            localStorage.setItem('customSchedules', JSON.stringify(schedules));
+            localStorage.setItem('dayMapping', JSON.stringify(dayMapping));
+            localStorage.setItem('timeOffset', timeOffset);
+            localStorage.setItem('darkMode', isDarkMode);
+            localStorage.setItem('isBombEnabled', isBombEnabled);
+            localStorage.setItem('lastManualMode', currentScheduleMode);
+            localStorage.setItem('zoomLevel', zoomLevel);
+
+            body.classList.toggle('dark-mode', isDarkMode);
+            document.getElementById('settings-modal').style.display = 'none';
+        }
+
+        function toggleViewMode() {
+            const modes = ['show-clock', 'show-countdown', 'show-pomodoro'];
+            let current = modes.findIndex(m => body.classList.contains(m));
+            body.classList.remove(modes[current]);
+            body.classList.add(modes[(current + 1) % modes.length]);
+        }
+
+        function closeModalOutside(e) { if(e.target.id === 'settings-modal') saveSettings(); }
+        function toggleFullScreen() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+
+        videoInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                if (videoObjectURL) URL.revokeObjectURL(videoObjectURL);
+                videoObjectURL = URL.createObjectURL(file);
+                videoPlayer.src = videoObjectURL;
+                videoPlayer.load();
+                alert("動画を読み込みました。");
+            }
+        });
+
+        function update() {
+            const now = new Date();
+            now.setMilliseconds(now.getMilliseconds() + (timeOffset * 1000));
+            const timeStr = now.toTimeString().split(' ')[0];
+            
+            document.getElementById('clock-display').innerText = timeStr;
+            document.getElementById('clock-sub').innerText = `現在時刻 ${timeStr}`;
+            
+            const days = ['日', '月', '火', '水', '木', '金', '土'];
+            document.getElementById('date-area').innerText = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} (${days[now.getDay()]})`;
+
+            if (isScheduleEnabled) {
+                document.getElementById('schedule-label').innerText = currentScheduleMode + "時間授業モード";
+                const currentTotalSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+                const activeSchedule = schedules[currentScheduleMode];
+                let diffSec = -1;
+                let targetTimeStr = "";
+
+                if (activeSchedule) {
+                    for (let t of activeSchedule) {
+                        const parts = t.split(':');
+                        const targetTotal = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60;
+                        if (isBombEnabled && targetTotal === currentTotalSec && lastExplodeTime !== timeStr) {
+                            // 時間割チャイムは音無し(false)で爆発のみ
+                            triggerExplosion(false);
+                            lastExplodeTime = timeStr; 
+                        }
+                        if (targetTotal > currentTotalSec) {
+                            diffSec = targetTotal - currentTotalSec;
+                            targetTimeStr = t;
+                            break;
+                        }
+                    }
+                }
+
+                if (diffSec >= 0) {
+                    const m = Math.floor(diffSec / 60); const s = diffSec % 60;
+                    const remain = `${m}:${String(s).padStart(2, '0')}`;
+                    document.getElementById('timer-display').innerText = remain;
+                    document.getElementById('timer-sub').innerText = `次：${targetTimeStr} (残り ${remain})`;
+                    document.getElementById('next-label').innerText = `次のチャイム ${targetTimeStr}`;
+                } else {
+                    document.getElementById('timer-display').innerText = "--:--";
+                    document.getElementById('timer-sub').innerText = "本日の予定終了";
+                    document.getElementById('next-label').innerText = "本日の予定終了";
+                }
+            } else {
+                document.getElementById('schedule-label').innerText = "時間割オフ";
+                document.getElementById('timer-sub').innerText = "";
+            }
+        }
+
+        setInterval(update, 1000);
+        initApp();
+        update();
+    </script>
+</body>
+</html>
