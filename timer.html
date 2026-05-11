@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>School Timer V4.1</title>
+    <title>School Timer V4.1.2</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕒</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,6 +12,7 @@
             --bg-color: #ffffff; --text-color: #333333; --accent-color: #00479d;
             --sub-color: #666666; --countdown-color: #d32f2f; --ui-bg: rgba(128, 128, 128, 0.15);
             --modal-content-bg: #ffffff;
+            --zoom-factor: 1; /* 動的に変更される変数 */
         }
         .dark-mode {
             --bg-color: #121212; --text-color: #e0e0e0; --accent-color: #4da3ff;
@@ -19,7 +20,6 @@
             --modal-content-bg: #1e1e1e;
         }
         
-        /* 全要素のフォントを強制的に統一 */
         *, *::before, *::after, body, button, input, select, textarea {
             font-family: 'BIZ UDPGothic', sans-serif !important;
             box-sizing: border-box;
@@ -48,6 +48,8 @@
         #main-display { 
             display: flex; flex-direction: column; align-items: center; text-align: center; width: 100%; 
             transition: transform 0.2s ease-out; transform-origin: center;
+            /* ズーム倍率を適用 */
+            transform: scale(var(--zoom-factor));
         }
         
         .large-text { font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
@@ -205,8 +207,8 @@
                     <input type="checkbox" id="darkmode-check">
                 </div>
                 <div class="setting-item vertical">
-                    <label>文字サイズズーム</label>
-                    <input type="range" id="size-slider" min="30" max="150" value="100" oninput="applyZoom(this.value)">
+                    <label id="size-label">表示ズーム: 100%</label>
+                    <input type="range" id="size-slider" min="30" max="200" value="100" oninput="applyZoom(this.value)">
                 </div>
                 <div class="setting-item">
                     <label>時間補正 (秒)</label>
@@ -259,6 +261,18 @@
             document.getElementById('schedule-edit-6').value = schedules["6"].join(", ");
         }
 
+        function applyZoom(val) {
+            zoomLevel = val;
+            document.documentElement.style.setProperty('--zoom-factor', val / 100);
+            const label = document.getElementById('size-label');
+            if (label) label.innerText = `表示ズーム: ${val}%`;
+        }
+
+        function applyVolume(val) {
+            bombVolume = val;
+            if (videoPlayer) videoPlayer.volume = val;
+        }
+
         function playBeep() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const osc = audioCtx.createOscillator();
@@ -269,18 +283,35 @@
             osc.start(); osc.stop(audioCtx.currentTime + 1.0);
         }
 
-        function applyZoom(val) { zoomLevel = val; document.getElementById('main-display').style.transform = `scale(${val / 100})`; }
-        function applyVolume(val) { bombVolume = val; videoPlayer.volume = val; }
+        // パターンE（ロングバージョン）
+        function playTimerEndSound() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const notes = [660, 554]; 
+            const duration = 2.5; 
+
+            notes.forEach(freq => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(bombVolume * 0.2, audioCtx.currentTime + 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            });
+        }
 
         function triggerExplosion(withSound = false) {
-            if (!isBombEnabled) return;
+            if (!isBombEnabled) return; 
             if (videoPlayer.src && videoPlayer.src.startsWith('blob:')) {
                 isExplodingNow = true;
                 explosionOverlay.style.display = 'flex';
                 body.classList.add('is-exploding');
                 videoPlayer.currentTime = 0;
                 videoPlayer.play().catch(e => stopExplosion());
-                if (withSound) playBeep();
             } else if (withSound) {
                 playBeep();
                 body.style.backgroundColor = "red";
@@ -302,6 +333,7 @@
         }
 
         function setQuickTimer(min) { resetManualTimer(); manualTime = min * 60; updateManualUI(); startManualTimer(); }
+        
         function startManualTimer() {
             if (manualTimerId) clearInterval(manualTimerId);
             const mIn = parseInt(document.getElementById('m-input').value) || 0;
@@ -314,11 +346,13 @@
                 manualTime--;
                 if (manualTime <= 0) {
                     clearInterval(manualTimerId);
-                    triggerExplosion(true);
+                    if (isBombEnabled) triggerExplosion(false); 
+                    else playTimerEndSound();
                 }
                 updateManualUI();
             }, 1000);
         }
+
         function resetManualTimer() { clearInterval(manualTimerId); manualTime = 0; updateManualUI(); }
         function updateManualUI() {
             const m = Math.floor(manualTime / 60); const s = manualTime % 60;
@@ -333,6 +367,7 @@
             document.getElementById('offset-input').value = timeOffset;
             document.getElementById('size-slider').value = zoomLevel;
             document.getElementById('volume-slider').value = bombVolume;
+            applyZoom(zoomLevel);
 
             const dayContainer = document.getElementById('day-mapping-inputs');
             dayContainer.innerHTML = '';
@@ -350,6 +385,7 @@
             isBombEnabled = document.getElementById('bomb-enable-check').checked;
             timeOffset = parseFloat(document.getElementById('offset-input').value) || 0;
             bombVolume = document.getElementById('volume-slider').value;
+            zoomLevel = document.getElementById('size-slider').value;
             
             schedules["5"] = document.getElementById('schedule-edit-5').value.split(',').map(s => s.trim()).filter(s => s); 
             schedules["6"] = document.getElementById('schedule-edit-6').value.split(',').map(s => s.trim()).filter(s => s); 
@@ -403,8 +439,9 @@
                         const parts = t.split(':');
                         if (parts.length < 2) continue;
                         const targetTotal = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60;
-                        if (isBombEnabled && targetTotal === currentTotalSec && lastExplodeTime !== timeStr) {
-                            triggerExplosion(false);
+                        if (targetTotal === currentTotalSec && lastExplodeTime !== timeStr) {
+                            if (isBombEnabled) triggerExplosion(false);
+                            else playTimerEndSound(); 
                             lastExplodeTime = timeStr; 
                         }
                         if (targetTotal > currentTotalSec) { diffSec = targetTotal - currentTotalSec; targetTimeStr = t; break; }
