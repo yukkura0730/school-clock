@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>School Timer V4.1.2</title>
+    <title>School Clock Timer V4.1.3</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕒</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -128,9 +128,9 @@
                     <button onclick="resetManualTimer()" style="background:#888; color:white;">消去</button>
                 </div>
                 <div class="manual-inputs" style="display: flex; gap: 10px; align-items: center; justify-content: center; margin-top: 10px;">
-                    <input type="number" id="m-input" placeholder="分" min="0">
+                    <input type="number" id="m-input" placeholder="分" min="0" oninput="saveSettings()">
                     <span style="font-weight:bold">分</span>
-                    <input type="number" id="s-input" placeholder="秒" min="0" max="59">
+                    <input type="number" id="s-input" placeholder="秒" min="0" max="59" oninput="saveSettings()">
                     <span style="font-weight:bold">秒</span>
                     <button onclick="startManualTimer()" style="background: var(--accent-color); color: white; padding: 12px 30px; font-size: 1.3rem;">開始</button>
                 </div>
@@ -157,11 +157,11 @@
                 <div class="highlight-box">
                     <div class="setting-item">
                         <label>時間割機能を有効にする</label>
-                        <input type="checkbox" id="schedule-enable-check">
+                        <input type="checkbox" id="schedule-enable-check" onchange="saveSettings()">
                     </div>
                     <div class="setting-item">
                         <label>授業モード</label>
-                        <select id="current-mode-select" style="width: 100px;">
+                        <select id="current-mode-select" style="width: 100px;" onchange="saveSettings()">
                             <option value="5">5時間</option>
                             <option value="6">6時間</option>
                         </select>
@@ -173,11 +173,11 @@
                 </div>
                 <div class="setting-item vertical">
                     <label>5時間授業 (08:45, 09:35...)</label>
-                    <textarea id="schedule-edit-5" style="height:60px; font-size: 0.9rem;"></textarea>
+                    <textarea id="schedule-edit-5" style="height:60px; font-size: 0.9rem;" oninput="saveSettings()"></textarea>
                 </div>
                 <div class="setting-item vertical">
                     <label>6時間授業 (08:45, 09:35...)</label>
-                    <textarea id="schedule-edit-6" style="height:60px; font-size: 0.9rem;"></textarea>
+                    <textarea id="schedule-edit-6" style="height:60px; font-size: 0.9rem;" oninput="saveSettings()"></textarea>
                 </div>
             </div>
 
@@ -186,7 +186,7 @@
                 <div class="highlight-box" style="border: 1px solid var(--countdown-color);">
                     <div class="setting-item">
                         <label>機能を有効にする</label>
-                        <input type="checkbox" id="bomb-enable-check">
+                        <input type="checkbox" id="bomb-enable-check" onchange="saveSettings()">
                     </div>
                     <div class="setting-item vertical">
                         <label>動画ファイルを選択</label>
@@ -194,7 +194,7 @@
                     </div>
                     <div class="setting-item vertical">
                         <label>音量調整</label>
-                        <input type="range" id="volume-slider" min="0" max="1" step="0.1" oninput="applyVolume(this.value)">
+                        <input type="range" id="volume-slider" min="0" max="1" step="0.1" oninput="applyVolume(this.value); saveSettings();">
                     </div>
                     <button type="button" onclick="triggerExplosion(true)" style="width:100%; margin-top:10px; background:#333; color:white;">💥 テスト爆発</button>
                 </div>
@@ -204,19 +204,19 @@
                 <h4>🖥️ システム設定</h4>
                 <div class="setting-item">
                     <label>ダークモード</label>
-                    <input type="checkbox" id="darkmode-check">
+                    <input type="checkbox" id="darkmode-check" onchange="saveSettings()">
                 </div>
                 <div class="setting-item vertical">
                     <label id="size-label">表示ズーム: 100%</label>
-                    <input type="range" id="size-slider" min="30" max="200" value="100" oninput="applyZoom(this.value)">
+                    <input type="range" id="size-slider" min="30" max="200" value="100" oninput="applyZoom(this.value); saveSettings();">
                 </div>
                 <div class="setting-item">
                     <label>時間補正 (秒)</label>
-                    <input type="number" id="offset-input" step="0.1" style="width: 100px;">
+                    <input type="number" id="offset-input" step="0.1" style="width: 100px;" oninput="saveSettings()">
                 </div>
             </div>
 
-            <button class="btn-accent" onclick="saveSettings()">設定を保存して閉じる</button>
+            <button class="btn-accent" onclick="saveSettings(); document.getElementById('settings-modal').style.display = 'none';">設定を保存して閉じる</button>
         </div>
     </div>
 
@@ -283,7 +283,6 @@
             osc.start(); osc.stop(audioCtx.currentTime + 1.0);
         }
 
-        // パターンE（ロングバージョン）
         function playTimerEndSound() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const notes = [660, 554]; 
@@ -372,24 +371,38 @@
             const dayContainer = document.getElementById('day-mapping-inputs');
             dayContainer.innerHTML = '';
             dayNames.forEach((name, i) => {
-                dayContainer.innerHTML += `<div style="text-align:center"><span style="font-size:10px">${name}</span><select id="day-${i}" style="font-size:10px; width:100%"><option value="5" ${dayMapping[i]==="5"?"selected":""}>5</option><option value="6" ${dayMapping[i]==="6"?"selected":""}>6</option></select></div>`;
+                dayContainer.innerHTML += `<div style="text-align:center"><span style="font-size:10px">${name}</span><select id="day-${i}" style="font-size:10px; width:100%" onchange="saveSettings()"><option value="5" ${dayMapping[i]==="5"?"selected":""}>5</option><option value="6" ${dayMapping[i]==="6"?"selected":""}>6</option></select></div>`;
             });
             refreshTextareas();
             document.getElementById('settings-modal').style.display = 'flex'; 
         }
 
         function saveSettings() { 
-            isScheduleEnabled = document.getElementById('schedule-enable-check').checked; 
-            currentScheduleMode = document.getElementById('current-mode-select').value; 
-            isDarkMode = document.getElementById('darkmode-check').checked;
-            isBombEnabled = document.getElementById('bomb-enable-check').checked;
-            timeOffset = parseFloat(document.getElementById('offset-input').value) || 0;
-            bombVolume = document.getElementById('volume-slider').value;
-            zoomLevel = document.getElementById('size-slider').value;
+            const schedCheck = document.getElementById('schedule-enable-check');
+            const modeSelect = document.getElementById('current-mode-select');
+            const dmCheck = document.getElementById('darkmode-check');
+            const bombCheck = document.getElementById('bomb-enable-check');
+            const offsetIn = document.getElementById('offset-input');
+            const volIn = document.getElementById('volume-slider');
+            const zoomIn = document.getElementById('size-slider');
+
+            if(schedCheck) isScheduleEnabled = schedCheck.checked; 
+            if(modeSelect) currentScheduleMode = modeSelect.value; 
+            if(dmCheck) isDarkMode = dmCheck.checked;
+            if(bombCheck) isBombEnabled = bombCheck.checked;
+            if(offsetIn) timeOffset = parseFloat(offsetIn.value) || 0;
+            if(volIn) bombVolume = volIn.value;
+            if(zoomIn) zoomLevel = zoomIn.value;
             
-            schedules["5"] = document.getElementById('schedule-edit-5').value.split(',').map(s => s.trim()).filter(s => s); 
-            schedules["6"] = document.getElementById('schedule-edit-6').value.split(',').map(s => s.trim()).filter(s => s); 
-            for(let i=0; i<7; i++) dayMapping[i] = document.getElementById(`day-${i}`).value;
+            const area5 = document.getElementById('schedule-edit-5');
+            const area6 = document.getElementById('schedule-edit-6');
+            if(area5) schedules["5"] = area5.value.split(',').map(s => s.trim()).filter(s => s); 
+            if(area6) schedules["6"] = area6.value.split(',').map(s => s.trim()).filter(s => s); 
+            
+            for(let i=0; i<7; i++) {
+                const dayEl = document.getElementById(`day-${i}`);
+                if(dayEl) dayMapping[i] = dayEl.value;
+            }
 
             localStorage.setItem('isScheduleEnabled', isScheduleEnabled); 
             localStorage.setItem('customSchedules', JSON.stringify(schedules)); 
@@ -402,7 +415,6 @@
             localStorage.setItem('bombVolume', bombVolume);
 
             body.classList.toggle('dark-mode', isDarkMode);
-            document.getElementById('settings-modal').style.display = 'none'; 
         }
 
         videoInput.addEventListener('change', function() {
@@ -416,7 +428,7 @@
         });
 
         function toggleViewMode() { const modes = ['show-clock', 'show-countdown', 'show-manual-timer']; let current = modes.findIndex(m => body.classList.contains(m)); body.classList.remove(modes[current]); body.classList.add(modes[(current + 1) % modes.length]); }
-        function closeModalOutside(e) { if(e.target.id === 'settings-modal') saveSettings(); }
+        function closeModalOutside(e) { if(e.target.id === 'settings-modal') { saveSettings(); document.getElementById('settings-modal').style.display = 'none'; } }
         function toggleFullScreen() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
 
         function update() {
@@ -429,6 +441,7 @@
 
             if (isScheduleEnabled) {
                 document.getElementById('schedule-label').innerText = currentScheduleMode + "時間授業モード";
+                document.getElementById('schedule-label').style.color = "";
                 const currentTotalSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
                 const activeSchedule = schedules[currentScheduleMode];
                 let diffSec = -1; let targetTimeStr = "";
@@ -458,6 +471,12 @@
                     document.getElementById('timer-display').innerText = "--:--";
                     document.getElementById('timer-sub').innerText = "本日の予定終了";
                 }
+            } else {
+                document.getElementById('schedule-label').innerText = "オフモード（時間割無効）";
+                document.getElementById('schedule-label').style.color = "#888";
+                document.getElementById('timer-display').innerText = "OFF";
+                document.getElementById('timer-sub').innerText = "時間割機能は停止中です";
+                document.getElementById('next-label').innerText = "---";
             }
         }
 
