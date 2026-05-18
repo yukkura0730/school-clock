@@ -2,26 +2,28 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>School Clock Timer V4.1.3</title>
+    <title>School Clock Timer V4.1.4</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕒</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Kiwi+Maru:wght@400;700&family=Kosugi+Maru&family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <div id="dynamic-font-link"></div>
     <style>
         :root {
             --bg-color: #ffffff; --text-color: #333333; --accent-color: #00479d;
             --sub-color: #666666; --countdown-color: #d32f2f; --ui-bg: rgba(128, 128, 128, 0.15);
             --modal-content-bg: #ffffff;
             --zoom-factor: 1; /* 動的に変更される変数 */
+            --font-family-base: 'BIZ UDPGothic', sans-serif;
         }
         .dark-mode {
-            --bg-color: #121212; --text-color: #e0e0e0; --accent-color: #4da3ff;
+            --bg-color: #121212; --text-color: #e0e0e0;
             --sub-color: #aaaaaa; --countdown-color: #ff5252; --ui-bg: rgba(255, 255, 255, 0.1);
             --modal-content-bg: #1e1e1e;
         }
         
         *, *::before, *::after, body, button, input, select, textarea {
-            font-family: 'BIZ UDPGothic', sans-serif !important;
+            font-family: var(--font-family-base), sans-serif !important;
             box-sizing: border-box;
         }
 
@@ -48,7 +50,6 @@
         #main-display { 
             display: flex; flex-direction: column; align-items: center; text-align: center; width: 100%; 
             transition: transform 0.2s ease-out; transform-origin: center;
-            /* ズーム倍率を適用 */
             transform: scale(var(--zoom-factor));
         }
         
@@ -91,13 +92,17 @@
         .setting-item.vertical { flex-direction: column; align-items: flex-start; }
         .setting-item label { font-weight: bold; font-size: 0.95rem; margin-bottom: 5px; }
         
-        input[type="number"], select, textarea, input[type="file"], input[type="range"] { 
+        input[type="number"], select, textarea, input[type="file"], input[type="range"], input[type="text"] { 
             width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--sub-color); 
             background: var(--bg-color); color: inherit; font-size: 1rem;
         }
-        
-        .highlight-box { background: rgba(0, 71, 157, 0.05); padding: 18px; border-radius: 15px; margin-bottom: 12px; }
-        .manual-inputs input { width: 100px; text-align: center; font-size: 2rem; border: 2px solid var(--accent-color); border-radius: 12px; }
+        input[type="color"] {
+            border: none; width: 60px; height: 40px; border-radius: 8px; cursor: pointer; background: none; padding: 0;
+        }
+        .textarea-header { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 5px; }
+        .btn-group-small { display: flex; gap: 5px; }
+        .btn-small { padding: 4px 8px; font-size: 0.75rem; border-radius: 6px; background: rgba(128,128,128,0.2); }
+        .btn-small-primary { padding: 4px 8px; font-size: 0.75rem; border-radius: 6px; background: var(--accent-color); color: white; }
     </style>
 </head>
 <body id="body-tag" class="show-clock" onclick="handleBodyClick()">
@@ -172,32 +177,42 @@
                     </div>
                 </div>
                 <div class="setting-item vertical">
-                    <label>5時間授業 (08:45, 09:35...)</label>
+                    <div class="textarea-header">
+                        <label>5時間授業 (08:45, 09:35...)</label>
+                        <div class="btn-group-small">
+                            <button type="button" class="btn-small-primary" onclick="setAsCustomDefault('5')">これをデフォルトにする</button>
+                            <button type="button" class="btn-small" id="restore-btn-5" onclick="restoreSchedule('5')">戻す</button>
+                        </div>
+                    </div>
                     <textarea id="schedule-edit-5" style="height:60px; font-size: 0.9rem;" oninput="saveSettings()"></textarea>
                 </div>
                 <div class="setting-item vertical">
-                    <label>6時間授業 (08:45, 09:35...)</label>
+                    <div class="textarea-header">
+                        <label>6時間授業 (08:45, 09:35...)</label>
+                        <div class="btn-group-small">
+                            <button type="button" class="btn-small-primary" onclick="setAsCustomDefault('6')">これをデフォルトにする</button>
+                            <button type="button" class="btn-small" id="restore-btn-6" onclick="restoreSchedule('6')">戻す</button>
+                        </div>
+                    </div>
                     <textarea id="schedule-edit-6" style="height:60px; font-size: 0.9rem;" oninput="saveSettings()"></textarea>
                 </div>
             </div>
 
             <div class="setting-section">
                 <h4 style="color: var(--countdown-color);">💣 爆発機能</h4>
-                <div class="highlight-box" style="border: 1px solid var(--countdown-color);">
-                    <div class="setting-item">
-                        <label>機能を有効にする</label>
-                        <input type="checkbox" id="bomb-enable-check" onchange="saveSettings()">
-                    </div>
-                    <div class="setting-item vertical">
-                        <label>動画ファイルを選択</label>
-                        <input type="file" id="video-file-input" accept="video/*">
-                    </div>
-                    <div class="setting-item vertical">
-                        <label>音量調整</label>
-                        <input type="range" id="volume-slider" min="0" max="1" step="0.1" oninput="applyVolume(this.value); saveSettings();">
-                    </div>
-                    <button type="button" onclick="triggerExplosion(true)" style="width:100%; margin-top:10px; background:#333; color:white;">💥 テスト爆発</button>
+                <div class="setting-item">
+                    <label>機能を有効にする</label>
+                    <input type="checkbox" id="bomb-enable-check" onchange="saveSettings()">
                 </div>
+                <div class="setting-item vertical">
+                    <label>動画ファイルを選択</label>
+                    <input type="file" id="video-file-input" accept="video/*">
+                </div>
+                <div class="setting-item vertical">
+                    <label>音量調整</label>
+                    <input type="range" id="volume-slider" min="0" max="1" step="0.1" oninput="applyVolume(this.value); saveSettings();">
+                </div>
+                <button type="button" onclick="triggerExplosion(true)" style="width:100%; margin-top:10px; background:#333; color:white;">💥 テスト爆発</button>
             </div>
 
             <div class="setting-section">
@@ -214,6 +229,27 @@
                     <label>時間補正 (秒)</label>
                     <input type="number" id="offset-input" step="0.1" style="width: 100px;" oninput="saveSettings()">
                 </div>
+                
+                <div class="setting-item vertical">
+                    <label>表示フォント設定</label>
+                    <select id="font-preset-select" onchange="handleFontPresetChange()" style="margin-bottom: 8px;">
+                        <option value="BIZ UDPGothic">BIZ UDPゴシック (標準)</option>
+                        <option value="Noto Sans JP">Noto Sans JP (角ゴシック)</option>
+                        <option value="Noto Serif JP">Noto Serif JP (明朝体)</option>
+                        <option value="Kosugi Maru">Kosugi Maru (丸ゴシック)</option>
+                        <option value="Kiwi Maru">Kiwi Maru (手書き風)</option>
+                        <option value="Roboto">Roboto (洋風デジタル)</option>
+                        <option value="custom">その他（直接名前を入力する）</option>
+                    </select>
+                    <div id="font-custom-input-container" style="display: none; width: 100%;">
+                        <input type="text" id="font-custom-input" placeholder="Google Fontsの正確な名前を入力" oninput="saveSettings()">
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <label>テーマカラー (RGB選択)</label>
+                    <input type="color" id="theme-color-picker" onchange="saveSettings()">
+                </div>
             </div>
 
             <button class="btn-accent" onclick="saveSettings(); document.getElementById('settings-modal').style.display = 'none';">設定を保存して閉じる</button>
@@ -221,13 +257,14 @@
     </div>
 
     <script>
-        const defaultSchedules = {
+        const initialSchedules = {
             "5": ["08:20", "08:30", "08:45", "09:35", "09:45", "10:35", "10:45", "11:35", "11:45", "12:35", "13:05", "13:20", "13:25", "14:15"],
             "6": ["08:30", "08:40", "08:45", "09:35", "09:45", "10:35", "10:45", "11:35", "11:45", "12:35", "13:05", "13:15", "13:25", "14:15", "14:25", "15:15"]
         };
         const dayNames = ['日','月','火','水','木','金','土'];
 
-        let schedules = JSON.parse(localStorage.getItem('customSchedules')) || defaultSchedules;
+        let customDefaults = JSON.parse(localStorage.getItem('customDefaults')) || { ...initialSchedules };
+        let schedules = JSON.parse(localStorage.getItem('customSchedules')) || { ...customDefaults };
         let dayMapping = JSON.parse(localStorage.getItem('dayMapping')) || ["6", "6", "6", "6", "6", "6", "6"];
         let currentScheduleMode = localStorage.getItem('lastManualMode') || dayMapping[new Date().getDay()];
         let timeOffset = parseFloat(localStorage.getItem('timeOffset')) || 0;
@@ -236,6 +273,9 @@
         let isScheduleEnabled = localStorage.getItem('isScheduleEnabled') !== 'false';
         let zoomLevel = localStorage.getItem('zoomLevel') || 100;
         let bombVolume = localStorage.getItem('bombVolume') || 1;
+        
+        let savedFontName = localStorage.getItem('appFontName') || "BIZ UDPGothic";
+        let savedHexColor = localStorage.getItem('appHexColor') || "#00479d";
         
         let videoObjectURL = null;
         let lastExplodeTime = "";
@@ -253,12 +293,71 @@
             applyZoom(zoomLevel); 
             applyVolume(bombVolume);
             body.classList.toggle('dark-mode', isDarkMode);
+            applyFontAndColor(savedFontName, savedHexColor, isDarkMode); 
             refreshTextareas();
         }
 
         function refreshTextareas() {
             document.getElementById('schedule-edit-5').value = schedules["5"].join(", ");
             document.getElementById('schedule-edit-6').value = schedules["6"].join(", ");
+            updateRestoreButtonsText();
+        }
+
+        function updateRestoreButtonsText() {
+            const hasCustom5 = JSON.stringify(customDefaults["5"]) !== JSON.stringify(initialSchedules["5"]);
+            const hasCustom6 = JSON.stringify(customDefaults["6"]) !== JSON.stringify(initialSchedules["6"]);
+            document.getElementById('restore-btn-5').innerText = hasCustom5 ? "マイデフォルトに戻す" : "初期値に戻す";
+            document.getElementById('restore-btn-6').innerText = hasCustom6 ? "マイデフォルトに戻す" : "初期値に戻す";
+        }
+
+        function setAsCustomDefault(mode) {
+            const area = document.getElementById(`schedule-edit-${mode}`);
+            if (!area) return;
+            const currentArray = area.value.split(',').map(s => s.trim()).filter(s => s);
+            if (currentArray.length === 0) return;
+
+            if (confirm(`${mode}時間授業のスケジュールを独自のデフォルト基準として保存しますか？`)) {
+                customDefaults[mode] = [...currentArray];
+                localStorage.setItem('customDefaults', JSON.stringify(customDefaults));
+                saveSettings();
+                updateRestoreButtonsText();
+            }
+        }
+
+        function restoreSchedule(mode) {
+            const hasCustom = JSON.stringify(customDefaults[mode]) !== JSON.stringify(initialSchedules[mode]);
+            if (hasCustom) {
+                const select = confirm(`どの状態に戻しますか？\n\n【OK】: 設定したデフォルト基準に戻す\n【キャンセル】: 出荷時の初期リセット画面へ`);
+                if (select) {
+                    schedules[mode] = [...customDefaults[mode]];
+                } else {
+                    if (confirm(`出荷時のアプリ初期値に戻し、マイデフォルトも削除しますか？`)) {
+                        customDefaults[mode] = [...initialSchedules[mode]];
+                        schedules[mode] = [...initialSchedules[mode]];
+                        localStorage.setItem('customDefaults', JSON.stringify(customDefaults));
+                    } else { return; }
+                }
+            } else {
+                if (confirm(`${mode}時間授業のスケジュールを出荷時初期値に戻しますか？`)) {
+                    schedules[mode] = [...initialSchedules[mode]];
+                } else { return; }
+            }
+            refreshTextareas();
+            saveSettings();
+        }
+
+        function handleFontPresetChange() {
+            const select = document.getElementById('font-preset-select');
+            const container = document.getElementById('font-custom-input-container');
+            const input = document.getElementById('font-custom-input');
+            
+            if (select.value === 'custom') {
+                container.style.display = 'block';
+            } else {
+                container.style.display = 'none';
+                input.value = select.value;
+                saveSettings();
+            }
         }
 
         function applyZoom(val) {
@@ -273,6 +372,40 @@
             if (videoPlayer) videoPlayer.volume = val;
         }
 
+        function adjustColorBrightness(hex, percent) {
+            let R = parseInt(hex.substring(1,3),16);
+            let G = parseInt(hex.substring(3,5),16);
+            let B = parseInt(hex.substring(5,7),16);
+            R = parseInt(R * (100 + percent) / 100);
+            G = parseInt(G * (100 + percent) / 100);
+            B = parseInt(B * (100 + percent) / 100);
+            R = (R<255)?R:255; G = (G<255)?G:255; B = (B<255)?B:255;
+            R = (R<0)?0:R; G = (G<0)?0:G; B = (B<0)?0:B;
+            const rHex = ("0"+R.toString(16)).slice(-2);
+            const gHex = ("0"+G.toString(16)).slice(-2);
+            const bHex = ("0"+B.toString(16)).slice(-2);
+            return `#${rHex}${gHex}${bHex}`;
+        }
+
+        function applyFontAndColor(fontName, hexColor, darkActive) {
+            const trimmedFont = fontName.trim();
+            if (trimmedFont) {
+                document.documentElement.style.setProperty('--font-family-base', `'${trimmedFont}'`);
+                const presets = ["BIZ UDPGothic", "Noto Sans JP", "Noto Serif JP", "Kosugi Maru", "Kiwi Maru", "Roboto"];
+                if (!presets.includes(trimmedFont)) {
+                    const fontUrlName = trimmedFont.replace(/\s+/g, '+');
+                    const fontLinkContainer = document.getElementById('dynamic-font-link');
+                    fontLinkContainer.innerHTML = `<link href="https://fonts.googleapis.com/css2?family=${fontUrlName}:wght@400;700&display=swap" rel="stylesheet">`;
+                }
+            }
+
+            let finalColor = hexColor;
+            if (darkActive) {
+                finalColor = adjustColorBrightness(hexColor, 50);
+            }
+            document.documentElement.style.setProperty('--accent-color', finalColor);
+        }
+
         function playBeep() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const osc = audioCtx.createOscillator();
@@ -285,21 +418,15 @@
 
         function playTimerEndSound() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const notes = [660, 554]; 
-            const duration = 2.5; 
-
+            const notes = [660, 554]; const duration = 2.5; 
             notes.forEach(freq => {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = "sine";
-                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+                osc.type = "sine"; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
                 gain.gain.setValueAtTime(0, audioCtx.currentTime);
                 gain.gain.linearRampToValueAtTime(bombVolume * 0.2, audioCtx.currentTime + 0.1);
                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + duration);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + duration);
             });
         }
 
@@ -312,18 +439,15 @@
                 videoPlayer.currentTime = 0;
                 videoPlayer.play().catch(e => stopExplosion());
             } else if (withSound) {
-                playBeep();
-                body.style.backgroundColor = "red";
+                playBeep(); body.style.backgroundColor = "red";
                 setTimeout(() => { body.style.backgroundColor = ""; }, 500);
             }
         }
 
         function stopExplosion(event) {
             if (event) event.stopPropagation();
-            explosionOverlay.style.display = 'none';
-            body.classList.remove('is-exploding');
-            videoPlayer.pause();
-            isExplodingNow = false;
+            explosionOverlay.style.display = 'none'; body.classList.remove('is-exploding');
+            videoPlayer.pause(); isExplodingNow = false;
         }
 
         function handleBodyClick() {
@@ -339,14 +463,12 @@
             const sIn = parseInt(document.getElementById('s-input').value) || 0;
             if (manualTime === 0) manualTime = mIn * 60 + sIn;
             if (manualTime <= 0) return;
-            body.classList.add('show-manual-timer');
-            body.classList.remove('show-clock', 'show-countdown');
+            body.classList.add('show-manual-timer'); body.classList.remove('show-clock', 'show-countdown');
             manualTimerId = setInterval(() => {
                 manualTime--;
                 if (manualTime <= 0) {
                     clearInterval(manualTimerId);
-                    if (isBombEnabled) triggerExplosion(false); 
-                    else playTimerEndSound();
+                    if (isBombEnabled) triggerExplosion(false); else playTimerEndSound();
                 }
                 updateManualUI();
             }, 1000);
@@ -366,6 +488,23 @@
             document.getElementById('offset-input').value = timeOffset;
             document.getElementById('size-slider').value = zoomLevel;
             document.getElementById('volume-slider').value = bombVolume;
+            document.getElementById('theme-color-picker').value = savedHexColor;
+            
+            const select = document.getElementById('font-preset-select');
+            const container = document.getElementById('font-custom-input-container');
+            const customInput = document.getElementById('font-custom-input');
+            
+            customInput.value = savedFontName;
+            
+            const options = Array.from(select.options).map(o => o.value);
+            if (options.includes(savedFontName)) {
+                select.value = savedFontName;
+                container.style.display = 'none';
+            } else {
+                select.value = 'custom';
+                container.style.display = 'block';
+            }
+            
             applyZoom(zoomLevel);
 
             const dayContainer = document.getElementById('day-mapping-inputs');
@@ -385,6 +524,9 @@
             const offsetIn = document.getElementById('offset-input');
             const volIn = document.getElementById('volume-slider');
             const zoomIn = document.getElementById('size-slider');
+            const colorIn = document.getElementById('theme-color-picker');
+            const fontSelect = document.getElementById('font-preset-select');
+            const fontCustomIn = document.getElementById('font-custom-input');
 
             if(schedCheck) isScheduleEnabled = schedCheck.checked; 
             if(modeSelect) currentScheduleMode = modeSelect.value; 
@@ -393,6 +535,13 @@
             if(offsetIn) timeOffset = parseFloat(offsetIn.value) || 0;
             if(volIn) bombVolume = volIn.value;
             if(zoomIn) zoomLevel = zoomIn.value;
+            if(colorIn) savedHexColor = colorIn.value;
+            
+            if (fontSelect && fontSelect.value !== 'custom') {
+                savedFontName = fontSelect.value;
+            } else if (fontCustomIn && fontCustomIn.value.trim()) {
+                savedFontName = fontCustomIn.value.trim();
+            }
             
             const area5 = document.getElementById('schedule-edit-5');
             const area6 = document.getElementById('schedule-edit-6');
@@ -413,8 +562,11 @@
             localStorage.setItem('timeOffset', timeOffset);
             localStorage.setItem('zoomLevel', zoomLevel);
             localStorage.setItem('bombVolume', bombVolume);
+            localStorage.setItem('appFontName', savedFontName);
+            localStorage.setItem('appHexColor', savedHexColor);
 
             body.classList.toggle('dark-mode', isDarkMode);
+            applyFontAndColor(savedFontName, savedHexColor, isDarkMode);
         }
 
         videoInput.addEventListener('change', function() {
@@ -453,8 +605,7 @@
                         if (parts.length < 2) continue;
                         const targetTotal = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60;
                         if (targetTotal === currentTotalSec && lastExplodeTime !== timeStr) {
-                            if (isBombEnabled) triggerExplosion(false);
-                            else playTimerEndSound(); 
+                            if (isBombEnabled) triggerExplosion(false); else playTimerEndSound(); 
                             lastExplodeTime = timeStr; 
                         }
                         if (targetTotal > currentTotalSec) { diffSec = targetTotal - currentTotalSec; targetTimeStr = t; break; }
@@ -468,7 +619,7 @@
                     document.getElementById('timer-sub').innerText = `次：${targetTimeStr} (残り ${remain})`;
                     document.getElementById('next-label').innerText = `次のチャイム ${targetTimeStr}`;
                 } else {
-                    document.getElementById('timer-display').innerText = "--:--";
+                    document.getElementById('timer-display').innerText = "終了";
                     document.getElementById('timer-sub').innerText = "本日の予定終了";
                 }
             } else {
