@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>School Clock Timer V4.1.4</title>
+    <title>School Clock Timer V4.1.9</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕒</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -181,7 +181,7 @@
                         <label>5時間授業 (08:45, 09:35...)</label>
                         <div class="btn-group-small">
                             <button type="button" class="btn-small-primary" onclick="setAsCustomDefault('5')">これをデフォルトにする</button>
-                            <button type="button" class="btn-small" id="restore-btn-5" onclick="restoreSchedule('5')">戻す</button>
+                            <button type="button" class="btn-small" id="restore-btn-5" onclick="restoreSchedule('5')">初期値に戻す</button>
                         </div>
                     </div>
                     <textarea id="schedule-edit-5" style="height:60px; font-size: 0.9rem;" oninput="saveSettings()"></textarea>
@@ -191,7 +191,7 @@
                         <label>6時間授業 (08:45, 09:35...)</label>
                         <div class="btn-group-small">
                             <button type="button" class="btn-small-primary" onclick="setAsCustomDefault('6')">これをデフォルトにする</button>
-                            <button type="button" class="btn-small" id="restore-btn-6" onclick="restoreSchedule('6')">戻す</button>
+                            <button type="button" class="btn-small" id="restore-btn-6" onclick="restoreSchedule('6')">初期値に戻す</button>
                         </div>
                     </div>
                     <textarea id="schedule-edit-6" style="height:60px; font-size: 0.9rem;" oninput="saveSettings()"></textarea>
@@ -300,14 +300,6 @@
         function refreshTextareas() {
             document.getElementById('schedule-edit-5').value = schedules["5"].join(", ");
             document.getElementById('schedule-edit-6').value = schedules["6"].join(", ");
-            updateRestoreButtonsText();
-        }
-
-        function updateRestoreButtonsText() {
-            const hasCustom5 = JSON.stringify(customDefaults["5"]) !== JSON.stringify(initialSchedules["5"]);
-            const hasCustom6 = JSON.stringify(customDefaults["6"]) !== JSON.stringify(initialSchedules["6"]);
-            document.getElementById('restore-btn-5').innerText = hasCustom5 ? "マイデフォルトに戻す" : "初期値に戻す";
-            document.getElementById('restore-btn-6').innerText = hasCustom6 ? "マイデフォルトに戻す" : "初期値に戻す";
         }
 
         function setAsCustomDefault(mode) {
@@ -320,30 +312,18 @@
                 customDefaults[mode] = [...currentArray];
                 localStorage.setItem('customDefaults', JSON.stringify(customDefaults));
                 saveSettings();
-                updateRestoreButtonsText();
             }
         }
 
+        // いつでも一発で出荷時の初期値にリセットするよう修正
         function restoreSchedule(mode) {
-            const hasCustom = JSON.stringify(customDefaults[mode]) !== JSON.stringify(initialSchedules[mode]);
-            if (hasCustom) {
-                const select = confirm(`どの状態に戻しますか？\n\n【OK】: 設定したデフォルト基準に戻す\n【キャンセル】: 出荷時の初期リセット画面へ`);
-                if (select) {
-                    schedules[mode] = [...customDefaults[mode]];
-                } else {
-                    if (confirm(`出荷時のアプリ初期値に戻し、マイデフォルトも削除しますか？`)) {
-                        customDefaults[mode] = [...initialSchedules[mode]];
-                        schedules[mode] = [...initialSchedules[mode]];
-                        localStorage.setItem('customDefaults', JSON.stringify(customDefaults));
-                    } else { return; }
-                }
-            } else {
-                if (confirm(`${mode}時間授業のスケジュールを出荷時初期値に戻しますか？`)) {
-                    schedules[mode] = [...initialSchedules[mode]];
-                } else { return; }
+            if (confirm(`${mode}時間授業のスケジュールを出荷時初期値（アプリ内蔵データ）に戻しますか？\n※「これをデフォルトにする」で保存したカスタムデータも消去されます。`)) {
+                customDefaults[mode] = [...initialSchedules[mode]];
+                schedules[mode] = [...initialSchedules[mode]];
+                localStorage.setItem('customDefaults', JSON.stringify(customDefaults));
+                refreshTextareas();
+                saveSettings();
             }
-            refreshTextareas();
-            saveSettings();
         }
 
         function handleFontPresetChange() {
