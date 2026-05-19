@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>School Clock Timer V4.1.4</title>
+    <title>School Clock Timer V4.1.5</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕒</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -72,9 +72,10 @@
         #controls-bottom-right { bottom: 20px; right: 20px; flex-direction: column; }
         #settings-trigger-top { top: 20px; right: 20px; }
         
-        button {
+        button, .btn-link {
             cursor: pointer; padding: 12px 18px; border-radius: 10px; border: none;
             background: var(--ui-bg); color: var(--text-color); font-weight: bold;
+            text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
         }
         .btn-accent { background: var(--accent-color); color: white; margin-top: 15px; width: 100%; padding: 15px; border-radius: 10px; font-size: 1.2rem; }
         
@@ -108,7 +109,7 @@
 <body id="body-tag" class="show-clock" onclick="handleBodyClick()">
 
     <div id="explosion-overlay" onclick="stopExplosion(event)">
-        <video id="explosion-video" playsinline></video>
+        <video id="explosion-video" playsinline onended="stopExplosion()"></video>
     </div>
 
     <div id="main-display">
@@ -212,7 +213,7 @@
                     <label>音量調整</label>
                     <input type="range" id="volume-slider" min="0" max="1" step="0.1" oninput="applyVolume(this.value); saveSettings();">
                 </div>
-                <button type="button" onclick="triggerExplosion(true)" style="width:100%; margin-top:10px; background:#333; color:white;">💥 テスト爆発</button>
+                <button type="button" onclick="triggerExplosion(true)" style="width:100%; margin-top:10px; background:#333; color:white;">💥 テスト爆発(爆発機能のチェックがないと爆発しません)</button>
             </div>
 
             <div class="setting-section">
@@ -250,6 +251,21 @@
                     <label>テーマカラー (RGB選択)</label>
                     <input type="color" id="theme-color-picker" onchange="saveSettings()">
                 </div>
+
+                <div class="setting-item">
+                    <label>メイン文字色変更</label>
+                    <input type="color" id="text-color-picker" onchange="saveSettings()">
+                </div>
+            </div>
+
+            <div class="setting-section">
+                <h4>📄 アプリ情報とソースコード</h4>
+                <div class="setting-item vertical">
+                    <label style="margin-bottom: 10px;">ソースコードはGitHubで公開されています。</label>
+                    <a href="https://github.com/yukkura0730/school-clock" target="_blank" rel="noopener noreferrer" class="btn-link" style="width: 100%; background: #24292e; color: white;">
+                        🐙 GitHubでソースコードを見る
+                    </a>
+                </div>
             </div>
 
             <button class="btn-accent" onclick="saveSettings(); document.getElementById('settings-modal').style.display = 'none';">設定を保存して閉じる</button>
@@ -276,6 +292,7 @@
         
         let savedFontName = localStorage.getItem('appFontName') || "BIZ UDPGothic";
         let savedHexColor = localStorage.getItem('appHexColor') || "#00479d";
+        let savedTextColor = localStorage.getItem('appTextColor') || (isDarkMode ? "#e0e0e0" : "#333333");
         
         let videoObjectURL = null;
         let lastExplodeTime = "";
@@ -294,12 +311,15 @@
             applyVolume(bombVolume);
             body.classList.toggle('dark-mode', isDarkMode);
             applyFontAndColor(savedFontName, savedHexColor, isDarkMode); 
+            
+            document.documentElement.style.setProperty('--text-color', savedTextColor);
+            
             refreshTextareas();
         }
 
         function refreshTextareas() {
             document.getElementById('schedule-edit-5').value = schedules["5"].join(", ");
-            document.getElementById('schedule-edit-6').value = schedules["6"].join(", ");
+            document.getElementById('schedule-edit-6').value = schedules["6"].join(". ");
         }
 
         function setAsCustomDefault(mode) {
@@ -315,7 +335,6 @@
             }
         }
 
-        // いつでも一発で出荷時の初期値にリセットするよう修正
         function restoreSchedule(mode) {
             if (confirm(`${mode}時間授業のスケジュールを出荷時初期値（アプリ内蔵データ）に戻しますか？\n※「これをデフォルトにする」で保存したカスタムデータも消去されます。`)) {
                 customDefaults[mode] = [...initialSchedules[mode]];
@@ -424,6 +443,16 @@
             }
         }
 
+        document.getElementById('video-file-input').addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                if (videoObjectURL) URL.revokeObjectURL(videoObjectURL);
+                videoObjectURL = URL.createObjectURL(file);
+                videoPlayer.src = videoObjectURL;
+                videoPlayer.load();
+            }
+        });
+
         function stopExplosion(event) {
             if (event) event.stopPropagation();
             explosionOverlay.style.display = 'none'; body.classList.remove('is-exploding');
@@ -470,6 +499,8 @@
             document.getElementById('volume-slider').value = bombVolume;
             document.getElementById('theme-color-picker').value = savedHexColor;
             
+            document.getElementById('text-color-picker').value = savedTextColor;
+            
             const select = document.getElementById('font-preset-select');
             const container = document.getElementById('font-custom-input-container');
             const customInput = document.getElementById('font-custom-input');
@@ -493,6 +524,7 @@
                 dayContainer.innerHTML += `<div style="text-align:center"><span style="font-size:10px">${name}</span><select id="day-${i}" style="font-size:10px; width:100%" onchange="saveSettings()"><option value="5" ${dayMapping[i]==="5"?"selected":""}>5</option><option value="6" ${dayMapping[i]==="6"?"selected":""}>6</option></select></div>`;
             });
             refreshTextareas();
+
             document.getElementById('settings-modal').style.display = 'flex'; 
         }
 
@@ -507,6 +539,8 @@
             const colorIn = document.getElementById('theme-color-picker');
             const fontSelect = document.getElementById('font-preset-select');
             const fontCustomIn = document.getElementById('font-custom-input');
+            
+            const textColorIn = document.getElementById('text-color-picker');
 
             if(schedCheck) isScheduleEnabled = schedCheck.checked; 
             if(modeSelect) currentScheduleMode = modeSelect.value; 
@@ -516,6 +550,12 @@
             if(volIn) bombVolume = volIn.value;
             if(zoomIn) zoomLevel = zoomIn.value;
             if(colorIn) savedHexColor = colorIn.value;
+            
+            if(textColorIn) {
+                savedTextColor = textColorIn.value;
+                localStorage.setItem('appTextColor', savedTextColor);
+                document.documentElement.style.setProperty('--text-color', savedTextColor);
+            }
             
             if (fontSelect && fontSelect.value !== 'custom') {
                 savedFontName = fontSelect.value;
@@ -548,16 +588,6 @@
             body.classList.toggle('dark-mode', isDarkMode);
             applyFontAndColor(savedFontName, savedHexColor, isDarkMode);
         }
-
-        videoInput.addEventListener('change', function() {
-            const file = this.files[0];
-            if (file) {
-                if (videoObjectURL) URL.revokeObjectURL(videoObjectURL);
-                videoObjectURL = URL.createObjectURL(file);
-                videoPlayer.src = videoObjectURL;
-                videoPlayer.load();
-            }
-        });
 
         function toggleViewMode() { const modes = ['show-clock', 'show-countdown', 'show-manual-timer']; let current = modes.findIndex(m => body.classList.contains(m)); body.classList.remove(modes[current]); body.classList.add(modes[(current + 1) % modes.length]); }
         function closeModalOutside(e) { if(e.target.id === 'settings-modal') { saveSettings(); document.getElementById('settings-modal').style.display = 'none'; } }
