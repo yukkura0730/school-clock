@@ -253,7 +253,7 @@
                 </div>
 
                 <div class="setting-item">
-                    <label>メイン文字色変更</label>
+                    <label>文字色変更</label>
                     <input type="color" id="text-color-picker" onchange="saveSettings()">
                 </div>
             </div>
@@ -319,7 +319,7 @@
 
         function refreshTextareas() {
             document.getElementById('schedule-edit-5').value = schedules["5"].join(", ");
-            document.getElementById('schedule-edit-6').value = schedules["6"].join(". ");
+            document.getElementById('schedule-edit-6').value = schedules["6"].join(", ");
         }
 
         function setAsCustomDefault(mode) {
